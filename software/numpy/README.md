@@ -38,7 +38,7 @@ The speedup arrives in two parts that activate differently, and the distinction 
 
 ### Installation
 
-There are two practical ways to get a oneMKL-backed NumPy. conda is recommended because it also lets you control the OpenMP runtime (see [Threads and NUMA](#threads-and-numa)). [Miniforge](https://github.com/conda-forge/miniforge) distribution is recommended.
+There are three practical ways to get a oneMKL-backed NumPy. conda is recommended because it also lets you control the OpenMP runtime (see [Threads and NUMA](#threads-and-numa)). [Miniforge](https://github.com/conda-forge/miniforge) distribution is recommended.
 
 **conda.** A single command installs NumPy, SciPy, the three extension packages (mkl_fft, mkl_random, mkl_umath), and the runtime libraries. The BLAS/LAPACK backend routes to oneMKL automatically; the extensions are installed but still need explicit activation (the activation process is shown in the [Optimization Levers](#optimization-levers) section).
 
@@ -49,7 +49,7 @@ conda create -n idp_env python intelpython3_full \
   conda activate idp_env
 ```
 
-> **Threading layer for this environment.** `intelpython3_full` is a metapackage that also brings in `scikit-learn`, which is built against GNU OpenMP. In this mixed environment set `MKL_THREADING_LAYER=GNU` so oneMKL and those packages share one OpenMP runtime (see [Threads and NUMA](#threads-and-numa)). If you only need oneMKL-backed NumPy, prefer the targeted install below, which stays on Intel OpenMP (`MKL_THREADING_LAYER=INTEL`) with no such tradeoff.
+> **Threading layer for this environment.** `intelpython3_full` is a metapackage that also brings in `scikit-learn`, which is built against GNU OpenMP. In this mixed environment set `MKL_THREADING_LAYER=GNU` so oneMKL and those packages share one OpenMP runtime (see [Threads and NUMA](#threads-and-numa)) - or alternatively, install the LLVM OpenMP runtime (`conda install _openmp_mutex=*=*llvm*`) which is binary compatible with both. If you only need oneMKL-backed NumPy, prefer the targeted install below, which stays on Intel OpenMP (`MKL_THREADING_LAYER=INTEL`) with no such tradeoff.
 
 Pin python version to match your project if you need a specific interpreter. NumPy comes from conda-forge; the Intel channel supplies Intel's latest oneMKL builds. The `mkl_fft`/`mkl_random`/`mkl_umath` extensions are available from both conda-forge and the Intel channel, so either channel works for them; the command below keeps both channels enabled. To add oneMKL to an *existing* environment that already has conda-forge NumPy installed, swap its BLAS to the MKL variant and add the extensions in place (this re-links the NumPy you already have, it does not reinstall NumPy).
 
@@ -73,6 +73,8 @@ pip install --index-url https://software.repos.intel.com/python/pypi \
 ```
 
 Use `--index-url`, not `--extra-index-url`: Intel's index is a partial mirror, and with `--extra-index-url` pip would see PyPI's higher-numbered OpenBLAS wheel and install that instead. Packages Intel does not mirror (for example `threadpoolctl`, used for [verification](#verifying-onemkl-is-active)) install normally from PyPI in a separate step. The Intel wheels target Linux and Windows; if `pip` reports no matching distribution, check that your platform and Python version are covered on the index.
+
+**apt.** On Debian and Debian-based distributions such as Ubuntu, system-level installs of NumPy (`apt install python3-numpy`) take their BLAS and LAPACK from system-level `libblas` and `liblapack`, which can be switched among different providers through the Debian alternatives system. See this [link section](../R/README.md#linux) for full instructions on how to set MKL as system provider for BLAS and LAPACK, which apt-installed NumPy will use.
 
 Whichever path you take, choose the OpenMP threading layer and set it **before anything imports NumPy, SciPy or MKL**. The variable is read once at MKL load time, so exporting it after the import has no effect. Intel OpenMP is the fastest on Intel hardware and is oneMKL's default, so setting the variable explicitly documents intent and guarantees the choice rather than changing behavior, especially useful in an all-Intel environment where Intel OpenMP is the only runtime present. In a mixed environment where other packages bring GNU's `libgomp`, you may instead set `MKL_THREADING_LAYER=GNU` so the process shares one runtime; that tradeoff and the other layer values are detailed under [Threads and NUMA](#threads-and-numa):
 

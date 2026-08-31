@@ -106,8 +106,7 @@ Note that, if these were previously installed from PyPI in a given environment, 
 pip install -U --force-reinstall --index-url https://software.repos.intel.com/python/pypi numpy scipy mkl-service
 ```
 
-If NumPy and SciPy are installed as system packages from APT (not recommended as versions will be out of date), similar system libraries `libblas` and `liblapack` can be made to be backed by oneMKL through the Debian alternatives system, after [installing oneMKL through APT](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-download.html?operatingsystem=linux&linux-install=apt):
-https://www.intel.com/content/www/us/en/developer/articles/technical/using-onemkl-with-r.html#inpage-nav-2-undefined
+If NumPy and SciPy are installed as system packages from APT (not recommended as versions will be out of date), similar system libraries `libblas` and `liblapack` can be made to be backed by oneMKL through the Debian alternatives system, after [installing oneMKL through APT](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-download.html?operatingsystem=linux&linux-install=apt) - see this [link section](../R/README.md#linux) for full instructions.
 
 Backends for BLAS and LAPACK mostly affect procedures from scikit-learn that rely on linear algebra, such as linear models and procedures involving covariances, distances, and similar (e.g. [LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html), [LogisticRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html), [KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html), [PCA](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html), [EmpiricalCovariance](https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EmpiricalCovariance.html), etc.), but do not have any effect on tree-based models (e.g. [RandomForestClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html), [HistGradientBoostingRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html), etc.), nor on meta-estimators (e.g. [GridSearchCV](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html)).
 
@@ -132,7 +131,17 @@ conda create -n intelenv -c conda-forge \
 
 On Windows, switching of OpenMP backends in conda environments is unfortunately not possible.
 
-When packages are installed through `pip` or APT, switching OpenMP backends is unfortunately not as easy unless packages are compiled from source, and the default choice for backend in those channels is usually GNU's LibGOMP, which is not as performant on Intel hardware. Thus, it is recommended to use a conda environment to manage the Python installation, where the OpenMP backend can be easily changed as needed.
+When packages are installed through Intel's pip index or through APT (e.g. `sudo apt install python3-sklearn`, switching OpenMP backends is unfortunately not as easy unless packages are compiled from source, and the default choice for backend in those channels is usually GNU's LibGOMP, which is not as performant on Intel hardware. Thus, it is recommended to use a conda environment to manage the Python installation (including the NumPy, SciPy, and scikit-learn installations), where the OpenMP backend can be easily changed as needed.
+
+Note that, on Linux, if packages like NumPy and SciPy are not installed in a conda environment but are using MKL through either a system-level library or through the pip-managed Intel builds, then there might be runtime conflicts due to scikit-learn trying to load LibGOMP while MKL tries to load Intel's OMP. In those cases (non-conda-managed MKL), to ensure that a single OpenMP runtime is loaded, MKL can be configured to use LibGOMP by setting an environment variable as follows:
+```shell
+export MKL_THREADING_LAYER=GNU
+```
+
+To make this permanent, it can be added to a file like `/etc/environment` as follows:
+```shell
+printf "MKL_THREADING_LAYER=GNU\n" | sudo tee -a /etc/environment
+```
 
 ### Verifying backends
 
@@ -168,7 +177,7 @@ If LLVM's LibOMP is being used, it will show an entry like the following:
 
 If the `prefix` entry mentions something different, such as `libgomp`, then it means another backend is in usage. Alternatively, if Intel's OpenMP is being used, it will show as `libiomp`.
 
-Note that the command above might return multiple backends - if that happens, the entry that appears first in the list is most likely to be used in practice by scikit-learn.
+Note that the command above might return multiple backends - if that happens, the entry that appears first in the list is most likely to be used in practice by scikit-learn. However, in such cases, it is advisable to set the environment variable `$MKL_THREADING_LAYER` to avoid loading potentially incompatible backends.
 
 ## Parallelism in scikit-learn
 
